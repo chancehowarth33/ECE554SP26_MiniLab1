@@ -20,10 +20,10 @@ assign mult = Ain * Bin;
 
 always_ff @(posedge clk or negedge rst_n) begin
   if (!rst_n) begin
-    accumulator <= 0;
+    accumulator <= '0;
   end
   else if (Clr) begin
-    accumulator <= 0;
+    accumulator <= '0;
   end
   else if (En) begin
     accumulator <= accumulator + mult;

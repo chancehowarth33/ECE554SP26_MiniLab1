@@ -1,49 +1,52 @@
 module MAC8 #(
-  parameter int DATA_WIDTH = 8
+  parameter int DATA_WIDTH = 8,
+  parameter int N          = 8
 )(
   input  logic clk,
   input  logic rst_n,
 
-  // control + B stream
+  // control + B stream (into stage 0)
   input  logic En_in,
   input  logic Clr_in,
   input  logic [DATA_WIDTH-1:0] b_in,
 
-  // A inputs (parallel)
-  // [0:7] is used since we loop from 0 to 7
-  // normaly we would write [7:0] and loop from 7 down to 0
-  input  logic [DATA_WIDTH-1:0] a_in [0:7],
+  // A stream: one byte per MAC per cycle (typically from 8 A FIFOs)
+  input  logic [DATA_WIDTH-1:0] a_in [0:N-1],
 
   // outputs (vector of results)
-  // [0:7] is used since we loop from 0 to 7
-  // normaly we would write [7:0] and loop from 7 down to 0
-  output logic [DATA_WIDTH*3-1:0] c_out [0:7]
+  output logic [DATA_WIDTH*3-1:0] c_out [0:N-1],
+
+  // NEW: export the pipelined control so top-level can align FIFO reads
+  output logic [N-1:0] en_out,
+  output logic [N-1:0] clr_out,
+
+  // Optional: export pipelined B for debug (not required)
+  output logic [DATA_WIDTH-1:0] b_out [0:N-1]
 );
 
-  // pipeline registers // 
-  logic [DATA_WIDTH-1:0] b_pipe   [0:7];
-  logic [7:0]            en_pipe;
-  logic [7:0]            clr_pipe;
+  // pipeline registers
+  logic [DATA_WIDTH-1:0] b_pipe [0:N-1];
+  logic [N-1:0]          en_pipe;
+  logic [N-1:0]          clr_pipe;
 
   integer k;
 
   // shift B, En, Clr across pipeline
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      for (k = 0; k < 8; k++) begin
-        // use '0 since it dynamicaly matches the width of the LHS
+      for (k = 0; k < N; k++) begin
         b_pipe[k] <= '0;
       end
       en_pipe  <= '0;
       clr_pipe <= '0;
     end else begin
       // stage 0
-      b_pipe[0]  <= b_in;
-      en_pipe[0] <= En_in;
-      clr_pipe[0]<= Clr_in;
+      b_pipe[0]   <= b_in;
+      en_pipe[0]  <= En_in;
+      clr_pipe[0] <= Clr_in;
 
-      // stages 1..7
-      for (k = 1; k < 8; k++) begin
+      // stages 1..N-1
+      for (k = 1; k < N; k++) begin
         b_pipe[k]   <= b_pipe[k-1];
         en_pipe[k]  <= en_pipe[k-1];
         clr_pipe[k] <= clr_pipe[k-1];
@@ -51,11 +54,13 @@ module MAC8 #(
     end
   end
 
-  // MAC instances
-  // instatiate N MAC modules in this case N = 8
+  // NEW: hook up exports
+  assign en_out = en_pipe;
+  assign clr_out = clr_pipe;
+
   genvar i;
   generate
-    for (i = 0; i < 8; i = i + 1) begin : MACS
+    for (i = 0; i < N; i++) begin : MACS
       MAC #(.DATA_WIDTH(DATA_WIDTH)) u_mac (
         .clk  (clk),
         .rst_n(rst_n),
@@ -65,6 +70,9 @@ module MAC8 #(
         .Bin  (b_pipe[i]),
         .Cout (c_out[i])
       );
+
+      // Optional debug visibility
+      assign b_out[i] = b_pipe[i];
     end
   endgenerate
 

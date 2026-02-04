@@ -26,15 +26,15 @@ module tb_part1a;
   // -----------------------------
   logic [7:0] a_full, a_empty;
   logic [7:0] a_wren;
-  logic [7:0] a_wdata [0:7];
+  logic [DATA_WIDTH-1:0] a_wdata [0:7];
   logic [7:0] a_rden;
-  logic [7:0] a_rdata [0:7];
+  logic [DATA_WIDTH-1:0] a_rdata [0:7];
 
   logic       b_full, b_empty;
   logic       b_wren;
-  logic [7:0] b_wdata;
+  logic [DATA_WIDTH-1:0] b_wdata;
   logic       b_rden;
-  logic [7:0] b_rdata;
+  logic [DATA_WIDTH-1:0] b_rdata;
 
   // -----------------------------
   // controller status/debug
@@ -84,9 +84,6 @@ module tb_part1a;
     .avm_readdata     (avm_readdata),
     .avm_readdatavalid(avm_readdatavalid),
     .avm_waitrequest  (avm_waitrequest),
-
-    .a_fifo_full      (a_full),
-    .b_fifo_full      (b_full),
 
     .a_fifo_wren      (a_wren),
     .a_fifo_wdata     (a_wdata),
@@ -140,17 +137,12 @@ module tb_part1a;
   );
 
   // =====================================================
-  // MAC8 wiring
+  // MAC8 wiring (a_in <= a_rdata)
   // =====================================================
   always_comb begin
-    a_in[0] = a_rdata[0];
-    a_in[1] = a_rdata[1];
-    a_in[2] = a_rdata[2];
-    a_in[3] = a_rdata[3];
-    a_in[4] = a_rdata[4];
-    a_in[5] = a_rdata[5];
-    a_in[6] = a_rdata[6];
-    a_in[7] = a_rdata[7];
+    for (int i = 0; i < 8; i++) begin
+      a_in[i] = a_rdata[i];
+    end
   end
 
   assign b_in = b_rdata;
@@ -180,10 +172,26 @@ module tb_part1a;
     );
   endtask
 
-  // Print every cycle (you can comment this out if too chatty)
+  // Print every cycle (comment out if too chatty)
   always_ff @(posedge clk) begin
     if (rst_n) print_status();
   end
+
+  // =====================================================
+  // Timeout helper (prevents hanging forever)
+  // =====================================================
+  task automatic wait_load_done_or_timeout;
+    fork
+      begin
+        wait (load_done == 1'b1);
+      end
+      begin
+        repeat (5000) @(posedge clk);
+        $fatal(1, "TIMEOUT: controller never asserted load_done");
+      end
+    join_any
+    disable fork;
+  endtask
 
   // =====================================================
   // Test sequence
@@ -209,21 +217,18 @@ module tb_part1a;
     // start controller
     start = 1'b1;
 
-    // wait for controller to finish filling FIFOs
+    // wait for controller to finish filling FIFOs (with timeout)
     $display("---- Waiting for controller to fill FIFOs ----");
-    wait (load_done == 1'b1);
+    wait_load_done_or_timeout();
     $display("---- Controller done: FIFOs filled ----");
 
     // -------------------------------------------------
-    // EXEC phase: stream 8 B bytes; read one byte from every A FIFO each cycle
-    //
-    // IMPORTANT about your FIFO:
-    // - o_data updates on posedge when rden is asserted.
-    // So we do a 1-cycle "preload" read with En=0,
-    // then 8 cycles with En=1.
+    // EXEC phase (compile smoke test, not final-correct math):
+    // - FIFO o_data updates on posedge when rden is asserted.
+    // - do 1-cycle preload with En=0, then 8 cycles En=1.
     // -------------------------------------------------
     $display("---- EXEC: preload read (En=0) ----");
-    Clr_in = 1'b1;                 // clear accumulators
+    Clr_in = 1'b1;
     a_rden = 8'hFF;
     b_rden = 1'b1;
     En_in  = 1'b0;
