@@ -10,17 +10,17 @@ module MAC8 #(
   input  logic Clr_in,
   input  logic [DATA_WIDTH-1:0] b_in,
 
-  // A stream: one byte per MAC per cycle (typically from 8 A FIFOs)
+  // A inputs (parallel)
   input  logic [DATA_WIDTH-1:0] a_in [0:N-1],
 
   // outputs (vector of results)
   output logic [DATA_WIDTH*3-1:0] c_out [0:N-1],
 
-  // NEW: export the pipelined control so top-level can align FIFO reads
+  // export pipelined control so top-level can align FIFO reads
   output logic [N-1:0] en_out,
   output logic [N-1:0] clr_out,
 
-  // Optional: export pipelined B for debug (not required)
+  // optional debug: pipelined B
   output logic [DATA_WIDTH-1:0] b_out [0:N-1]
 );
 
@@ -54,8 +54,8 @@ module MAC8 #(
     end
   end
 
-  // NEW: hook up exports
-  assign en_out = en_pipe;
+  // exports
+  assign en_out  = en_pipe;
   assign clr_out = clr_pipe;
 
   genvar i;
@@ -71,7 +71,6 @@ module MAC8 #(
         .Cout (c_out[i])
       );
 
-      // Optional debug visibility
       assign b_out[i] = b_pipe[i];
     end
   endgenerate
