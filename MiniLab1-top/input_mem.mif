@@ -1,0 +1,19 @@
+-- Memory initialization file (.mif)
+WIDTH = 64; -- size of each row in bits
+DEPTH = 9; -- size of memory in rows
+
+ADDRESS_RADIX=HEX;
+DATA_RADIX=HEX;
+
+CONTENT -- start of (address : data pairs)
+BEGIN
+    0 : 0102030405060708; -- memory address : data 
+    1 : 1112131415161718;
+    2 : 2122232425262728;
+    3 : 3132333435363738;
+    4 : 4142434445464748;
+    5 : 5152535455565758;
+    6 : 6162636465666768;
+    7 : 7172737475767778;
+    8 : 8182838485868788;
+END;
