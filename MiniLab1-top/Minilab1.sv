@@ -197,16 +197,15 @@ module Minilab1
   state_t state, state_n;
 
   logic exec_started;
+  logic last_b_sent;
   logic [$clog2(N+2)-1:0] drain_cnt;
 
   // ----------------------------
   // Combinational: next-state + datapath control
   // ----------------------------
-  integer ii;
-
   always_comb begin
     // Defaults
-    for (ii = 0; ii < N; ii++) begin
+    for (int ii = 0; ii < N; ii++) begin
       a_rden[ii] = 1'b0;
     end
     b_rden     = 1'b0;
@@ -232,17 +231,19 @@ module Minilab1
       S_EXEC: begin
         if (!exec_started) begin
           Clr_in = 1'b1;   // clear accumulators once at start
-        end
-
-        if (!b_empty) begin
+        end else if (!b_empty) begin
           En_in  = 1'b1;
           b_rden = 1'b1;
+        end else if (!last_b_sent) begin
+          // One extra En cycle: last B value is in b_rdata but
+          // hasn't been latched into b_pipe[0] yet
+          En_in = 1'b1;
         end else begin
           state_n = S_DRAIN;
         end
 
         // Pop each A lane aligned to its pipelined enable
-        for (ii = 0; ii < N; ii++) begin
+        for (int ii = 0; ii < N; ii++) begin
           if (en_out[ii] && !a_empty[ii]) begin
             a_rden[ii] = 1'b1;
           end
@@ -253,7 +254,7 @@ module Minilab1
       // DRAIN: wait for pipeline to finish
       // --------------------
       S_DRAIN: begin
-        for (ii = 0; ii < N; ii++) begin
+        for (int ii = 0; ii < N; ii++) begin
           if (en_out[ii] && !a_empty[ii]) begin
             a_rden[ii] = 1'b1;
           end
@@ -282,6 +283,7 @@ module Minilab1
     if (!rst_n) begin
       state        <= S_LOAD;
       exec_started <= 1'b0;
+      last_b_sent  <= 1'b0;
       drain_cnt    <= '0;
     end else begin
       state <= state_n;
@@ -289,8 +291,11 @@ module Minilab1
       // Track EXEC entry for one-cycle Clr pulse
       if (state != S_EXEC && state_n == S_EXEC) begin
         exec_started <= 1'b0;
+        last_b_sent  <= 1'b0;
       end else if (state == S_EXEC) begin
         exec_started <= 1'b1;
+        if (b_empty && !last_b_sent)
+          last_b_sent <= 1'b1;
       end
 
       // Setup drain counter on DRAIN entry
@@ -313,7 +318,7 @@ module Minilab1
   logic any_en;
   always_comb begin
     any_en = 1'b0;
-    for (ii = 0; ii < N; ii++) any_en |= en_out[ii];
+    for (int ii = 0; ii < N; ii++) any_en |= en_out[ii];
   end
 
   always_comb begin
