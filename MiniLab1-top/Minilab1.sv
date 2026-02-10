@@ -228,9 +228,14 @@ module Minilab1
       // --------------------
       // EXEC: stream B into MAC8; pop A lanes via pipelined enables
       // --------------------
+      // --------------------
+      // EXEC: stream B into MAC8; pop A lanes via pipelined enables
+      // --------------------
       S_EXEC: begin
         if (!exec_started) begin
           Clr_in = 1'b1;   // clear accumulators once at start
+          // FIX: Prefetch first B value during Clr cycle (FIFO latency = 1)
+          if (!b_empty) b_rden = 1'b1;
         end else if (!b_empty) begin
           En_in  = 1'b1;
           b_rden = 1'b1;
@@ -243,9 +248,14 @@ module Minilab1
         end
 
         // Pop each A lane aligned to its pipelined enable
+        // FIX: Reads must happen 1 cycle *before* enabled use in MAC
+        // Lane 0 needs read when En_in is high (enters pipe)
+        // Lane k needs read when en_out[k-1] (stage k-1) is high
         for (int ii = 0; ii < N; ii++) begin
-          if (en_out[ii] && !a_empty[ii]) begin
-            a_rden[ii] = 1'b1;
+          if (ii == 0) begin
+             if (En_in && !a_empty[ii]) a_rden[ii] = 1'b1;
+          end else begin
+             if (en_out[ii-1] && !a_empty[ii]) a_rden[ii] = 1'b1;
           end
         end
       end
@@ -254,9 +264,12 @@ module Minilab1
       // DRAIN: wait for pipeline to finish
       // --------------------
       S_DRAIN: begin
+        // Keep draining A FIFOs if needed (pipeline tail)
         for (int ii = 0; ii < N; ii++) begin
-          if (en_out[ii] && !a_empty[ii]) begin
-            a_rden[ii] = 1'b1;
+          if (ii == 0) begin
+             // No new En_in during DRAIN, so lane 0 doesn't read
+          end else begin
+             if (en_out[ii-1] && !a_empty[ii]) a_rden[ii] = 1'b1;
           end
         end
 
