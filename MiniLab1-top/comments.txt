@@ -1,1 +1,11 @@
 vsim -L C:/intelFPGA_lite/24.1std/questa_fse/intel/verilog/altera_mf -L C:/intelFPGA_lite/24.1std/questa_fse/intel/verilog/220model -vopt work.tb_parta -voptargs=+acc
+
+
+# OK   lane 0: 0x0012cc
+# OK   lane 1: 0x00550c
+# OK   lane 2: 0x00974c
+# OK   lane 3: 0x00d98c
+# OK   lane 4: 0x011bcc
+# OK   lane 5: 0x015e0c
+# OK   lane 6: 0x01a04c
+# OK   lane 7: 0x01e28c
