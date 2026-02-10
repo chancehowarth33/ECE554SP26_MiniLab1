@@ -143,7 +143,7 @@ module tb_minilab1;
     // enable HEX display
     SW[0] = 1'b1;
 
-    // Wait for DONE = LEDR[2:0] == 3'b101 (state 5)
+    // Wait for DONE = LEDR[2:0] == 3'b011 (state 3 = S_DONE)
     wait_for_done(200000); // timeout cycles
 
     $display("\n==== Reached DONE at time %0t ns ====", $time);
@@ -168,9 +168,9 @@ module tb_minilab1;
       for (c = 0; c < max_cycles; c++) begin
         @(posedge CLOCK_50);
         // LEDR[2:0] is driven combinationally from internal state
-        if (LEDR[2:0] == 3'b101) return;
+        if (LEDR[2:0] == 3'b011) return;
       end
-      $fatal(1, "TIMEOUT: never reached DONE (LEDR[2:0] != 101). Last LEDR=%b time=%0t", LEDR, $time);
+      $fatal(1, "TIMEOUT: never reached DONE (LEDR[2:0] != 011). Last LEDR=%b time=%0t", LEDR, $time);
     end
   endtask
 
